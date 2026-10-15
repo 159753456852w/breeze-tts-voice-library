@@ -28,6 +28,15 @@ jobs:
         run: python scripts/generate_voice_index.py --check
       - name: Test index edge cases
         run: python -m unittest discover -s tests -v
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Check audio scheduling and JavaScript
+        run: |
+          node --check assets/js/app.js
+          node --check assets/js/audio-loader.js
+          node --test tests/audio-loader.test.cjs
       - name: Stage only public website files
         run: python scripts/build_site.py
       - uses: actions/upload-pages-artifact@v4

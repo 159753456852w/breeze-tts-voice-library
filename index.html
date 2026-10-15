@@ -7,8 +7,9 @@
   <meta name="description" content="翻開 Breeze TTS 的聲音筆記本。搜尋、比較與試聽 1,000 種聲線，尋找有個性的聲音。">
   <title>Breeze TTS Voice Library — 聲音筆記本</title>
   <link rel="icon" href="./assets/images/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./assets/css/style.css">
-  <script src="./assets/js/app.js" defer></script>
+  <link rel="stylesheet" href="./assets/css/style.css?v=library-cache-v2">
+  <script src="./assets/js/audio-loader.js?v=library-cache-v2" defer></script>
+  <script src="./assets/js/app.js?v=library-cache-v2" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#library">跳至聲音列表</a>
@@ -66,6 +67,15 @@
           <button class="text-button reset-filters" type="button">重設</button>
         </div>
       </form>
+      <div class="preload-controls">
+        <label><input id="preload-enabled" type="checkbox" checked> 整庫背景載入</label>
+        <span id="preload-status" role="status" aria-live="polite">等待聲音索引</span>
+        <small>將漸進下載約 535 MiB；可暫停，省流量時自動停止。</small>
+        <progress id="library-progress" value="0" max="1000" aria-label="整庫已確認快取進度"></progress>
+        <span id="library-counts">已確認快取：0 / 1000</span>
+        <div class="cache-actions"><button class="text-button" id="retry-cache" type="button">重試未保存／失敗音檔</button><button class="text-button" id="clear-audio-cache" type="button">清除音訊快取並暫停</button></div>
+        <p id="cache-warning" role="status" hidden></p>
+      </div>
       <div class="results-heading"><p id="results-count" role="status">正在翻開聲音筆記…</p><span class="page-note" id="page-note"></span></div>
       <div id="load-error" class="empty-state" hidden><h3>聲音索引暫時打不開</h3><p id="load-error-text"></p><button class="button retry-index" type="button">重新載入</button></div>
       <div id="voice-grid" class="voice-grid" aria-busy="true"></div>

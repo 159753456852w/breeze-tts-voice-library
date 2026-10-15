@@ -6,7 +6,7 @@
 
 手繪紙張風格、繁中介面、關鍵字搜尋、性別／音高／類型篩選、四種排序、每頁 12 筆、隨機試聽、完整聲線描述、單一音訊播放器、進度／時間／音量、WAV 下載，以及最多四個聲音的比較清單。比較選擇只存在訪客自己的瀏覽器；不蒐集帳號或個人資料。
 
-音檔保留實際原名 `tts-design-0001.wav` 至 `tts-design-1000.wav`。索引工具掃描實際檔案，不靠連號猜測路徑；也支援空格、中文及其他非連號檔名。沒有使用 Git LFS、Base64、第二個 Repo 或外部音訊主機。音檔只在按播放／下載時請求。
+音檔保留實際原名 `tts-design-0001.wav` 至 `tts-design-1000.wav`。索引工具掃描實際檔案，不靠連號猜測路徑；也支援空格、中文及其他非連號檔名。沒有使用 Git LFS、Base64、第二個 Repo 或外部音訊主機。開啟網站後預設以 2 個並行請求漸進載入整庫，播放時降為 1 個；可以暫停或清除本機音訊快取。
 
 ## 最快部署：只建立一個空白 Repo
 
@@ -99,3 +99,74 @@ GitHub 官方：[單檔限制](https://docs.github.com/en/repositories/working-w
 ## 必須由你完成的操作
 
 建立自己的空白 GitHub Repo、登入上傳、設定 Pages Source，以及等候 GitHub 真實部署完成。本交付沒有你的 Repo URL，也沒有替你建立或推送 GitHub Repo；本機預覽和打包成功**不代表公開網址已上線**。完整的實測範圍見 `VERIFICATION.md`。
+
+
+## 整庫漸進式載入與可重用快取
+
+目前版本會從完整索引建立全部 1,000 個 WAV 的佇列，不依分頁或篩選限制。背景預設並行 2 個，逐筆下載並核對大小及 SHA256，直到全部保存完成或遇到暫停／離線／儲存或瀏覽器限制。播放期間仍持續整庫工作，只降為 1 個並行。搜尋、分頁與比較不會重建整庫佇列。
+
+### 操作
+
+- 勾選／取消 **「整庫背景載入」**：恢復／暫停背景工作。預設開啟，手動偏好可記住；省流量 saveData 時自動暫停。每位訪客可能下載完整約 535 MiB，介面有提示。
+- **「重試未保存／失敗音檔」**：重新處理有限次失敗或僅完成 HTTP 載入的項目；若目前暫停，先勾選背景載入。
+- **「清除音訊快取並暫停」**：停止播放器與下載，僅清除此網站命名空間的 Cache Storage，背景保持暫停，避免立刻重下載。
+
+開關偏好存於 localStorage，不可用也不影響功能。快取以 Cache Storage 本身為準，不用 localStorage 記錄冒充已保存。
+
+### 真正完成的判定
+
+UI 同時顯示已確認快取、下載中、失敗、本次完整請求、僅 HTTP 載入。「已確認快取」只在 Cache Storage put 完成並 match 回讀到正確 SHA256／大小標記後增加；下載前已比對真實 WAV 的 SHA256。重新整理則逐筆 match 既有快取並核對索引版本，恢復已完成數量。只有全部項目確認保存時，才顯示「全部音檔已完成載入」。
+
+「本次完整請求」表示此頁面完整取得且通過驗證的不同音檔，不是發出請求的次數。配額不足、儲存 API 不可用等情況下，音檔仍可完成 HTTP 載入，但顯示在「僅 HTTP 載入」，不算進已確認快取；HTTP 快取可能被清除，不能宣稱已長期保存。
+
+### 儲存與版本
+
+GitHub Pages WAV 於 2026-10-15 實際回應 Cache-Control max-age=600、Accept-Ranges bytes；一般 HTTP 快取無法確認 535 MiB 整庫是否仍保留，因此本版使用 **Window 的 Cache Storage，沒有 Service Worker**。一般下載仍使用同源原 URL、cache default，不加隨機 query；手動重試或索引版本失效時使用 reload 更新 HTTP 快取。
+
+Cache 名稱包含部署子路徑與 schema 版本，例如 breeze-audio:/breeze-tts-voice-library/:v2。只移除該命名空間的過時版本與索引失效項目，不影響其他網站快取。每個 entry 保存原始 WAV 回應及 SHA256／大小標記；更換索引版本只重取改變的檔案。這不是第二個 Repo 或音訊主機，資料存在訪客自己的瀏覽器。
+
+下載前使用 navigator.storage.estimate() 估算可用量，保留約 16 MiB 餘裕；估算是參考，寫入仍可能遇到 QuotaExceededError。空間不足不刪除已成功保存的音檔來反覆輪替，會提示原因、保留成果，並繼續盡可能 HTTP 載入其他檔案。釋放空間後可按重試。沒有假設每個裝置都有 535 MiB 空間。
+
+Cache Storage 是瀏覽器管理的儲存，可能因清除網站資料、私密模式、磁碟壓力或瀏覽器政策被淘汰；沒有承諾永久保留，也沒有自動請求永久儲存權限。每次啟動與播放都重新讀取實際 entry，缺少時重新載入。這個快取僅保存 WAV，沒有把網站改為離線 PWA；離線重新開啟首頁仍取決於 HTML/JS/JSON 是否可取得。
+
+### 播放優先與記憶體
+
+點選任何聲音即取消其他低優先級傳輸，指定聲音優先。如果它正在背景載入，提升並共用原請求，不無條件重抓。播放器先讀 Cache Storage，命中後只把當前音檔轉成一個 Blob URL 交給唯一的 audio element；切換／關閉會 revoke，不把整庫存成 JavaScript Blob 陣列。背景只同時處理少量回應，完成後釋放暫時資料。
+
+原 app 的 playVersion 與管理器 selection 雙重防止舊請求覆蓋新選擇。播放、暫停、拖曳進度、音量、下載及比較維持原有功能。下載連結仍是原 WAV 的相對 URL。少數瀏覽器若要求第二次播放手勢，介面保留原有提示。
+
+### 網路與有限重試
+
+正常並行 2 個；播放、慢速網路或隱藏分頁降為 1 個，弱網路／背景分頁每輪至少間隔約 1 秒，仍持續整庫，不停在少數候選。saveData 或離線暫停，online 事件恢復尚未完成及因網路失敗的項目；404 等明確檔案失敗不無限重試。
+
+背景每檔最多 3 次嘗試，退避後跳過，其他項目繼續；手動選擇／重試允許再做一次前景嘗試。正常請求 45 秒逾時，慢速網路 180 秒。因使用者操作取消的傳輸不算失敗嘗試。瀏覽器凍結背景頁面時 JavaScript 仍可能被暫停，回到前景後繼續。完全離開網頁後停止工作，下次依持久快取恢復；不是關閉頁面後仍會下載的背景服務。
+
+### 測試與推送
+
+```powershell
+node --check assets/js/audio-loader.js
+node --check assets/js/app.js
+node --test tests/audio-loader.test.cjs
+python -m unittest discover -s tests -v
+python scripts/generate_voice_index.py --check
+python scripts/build_site.py
+```
+
+建置依然要求新／空的 _site；請先把上一個 _site 改名保存。所有測試結果與真實瀏覽器 1,000 個音檔的快取驗收見 [LIBRARY_CACHE_VERIFICATION.md](LIBRARY_CACHE_VERIFICATION.md)。原 PRELOAD_VERIFICATION.md 是舊版「只預載少量候選」的歷史報告。
+
+本次修改不會自動 commit 或 push。確定要發布時，在本 repo 執行：
+
+```powershell
+git status --short
+git add index.html assets/js/audio-loader.js assets/js/app.js assets/css/style.css tests/audio-loader.test.cjs .github/workflows/deploy-pages.yml README.md LIBRARY_CACHE_VERIFICATION.md docs/library-cache-preview.png
+git commit -m "Load the complete voice library into verified browser cache"
+git push origin main
+```
+
+既有 origin：https://github.com/159753456852w/breeze-tts-voice-library.git
+
+正式網址：https://159753456852w.github.io/breeze-tts-voice-library/
+
+新版尚未推送，不能以本機驗收宣稱正式 Pages 已更新。GitHub Pages HTML/JS 可能快取 10 分鐘，部署後必要時強制重新整理。?preload-debug=1 可開啟 Console 的 [Breeze audio] 載入／儲存／命中記錄；X-Cache 是 CDN 狀態，不等於訪客 Cache Storage 的保存證明。
+
+官方參考：[Cache Storage 可直接在 Window 使用](https://developer.mozilla.org/en-US/docs/Web/API/CacheStorage)、[容量估算](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/estimate)、[瀏覽器配額及淘汰](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)。

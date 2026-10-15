@@ -12,7 +12,24 @@
     age: {child:'孩童', teen:'青少年', young_adult:'年輕成人', adult:'成人', older:'年長', unspecified:'年齡未指定', not_applicable:'年齡不適用'}
   };
   const state = {voices:[], filtered:[], byId:new Map(), page:1, current:null, status:'idle', selected:new Set(), loaded:false, volume:.8};
-  let searchTimer, toastTimer, loadVersion = 0;
+  let searchTimer, toastTimer, loadVersion = 0, playVersion = 0;
+  let preloadEnabled = true;
+  try { preloadEnabled = localStorage.getItem('breeze-library-v2') !== 'off'; } catch { /* Optional preference storage. */ }
+  $('#preload-enabled').checked = preloadEnabled;
+  const loader = new window.BreezeAudioLoader({enabled:preloadEnabled,
+    onState: status => {
+      $('#preload-status').textContent = status.text;
+      $('#library-progress').max = status.total || 1;
+      $('#library-progress').value = status.confirmed;
+      $('#library-counts').textContent = `已確認快取：${status.confirmed} / ${status.total} · 下載中：${status.active} · 失敗：${status.failed} · 本次完整請求：${status.requested} · 僅 HTTP 載入：${status.httpOnly}`;
+      $('#cache-warning').textContent = status.warning;
+      $('#cache-warning').hidden = !status.warning;
+    },
+    onEvent: event => { if (new URLSearchParams(location.search).get('preload-debug') === '1') console.debug('[Breeze audio]',JSON.stringify(event)); }
+  });
+  function planPreload() {
+    loader.setPlaybackActive(state.status === 'playing');
+  }
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const time = value => { const s = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0; return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
   const number = value => Number(value).toLocaleString('zh-TW');
@@ -72,11 +89,11 @@
     let last = 0;
     const buttons = visible.map(n=> {const dots = last && n-last>1 ? '<span class="page-ellipsis">…</span>' : ''; last=n;return `${dots}<button class="page-button" type="button" data-page="${n}" aria-label="第 ${n} 頁"${n===state.page?' aria-current="page"':''}>${n}</button>`;}).join('');
     $('#pagination').innerHTML = total ? `<button class="page-button" type="button" data-page="${state.page-1}" aria-label="上一頁"${state.page===1?' disabled':''}>←</button>${buttons}<button class="page-button" type="button" data-page="${state.page+1}" aria-label="下一頁"${state.page===pages?' disabled':''}>→</button>` : '';
-    updatePlayback(); updateSelection();
+    updatePlayback(); updateSelection(); planPreload();
   }
   function renderComparison() {
     $('#compare-grid').innerHTML = [...state.selected].map(id=>state.byId.get(id)).filter(Boolean).map(v=>card(v,true)).join('');
-    $('#compare-empty').hidden = state.selected.size>0; updatePlayback(); updateSelection();
+    $('#compare-empty').hidden = state.selected.size>0; updatePlayback(); updateSelection(); planPreload();
   }
   function updateSelection() {
     $$('.compare-count').forEach(el=>el.textContent=state.selected.size);
@@ -103,18 +120,27 @@
     if(state.current){$('#now-id').textContent=`#${idLabel(state.current)}`;$('#now-status').textContent=statusLabel();$('#now-time').textContent=`${time(elapsed)} / ${time(duration)}`;$('.now-toggle').textContent=playing?'Ⅱ':'▶';$('.now-toggle').setAttribute('aria-label',playing?'暫停目前聲音':'播放目前聲音');$('#now-seek').disabled=!Number.isFinite(audio.duration)||state.status==='error';if(document.activeElement!==$('#now-seek'))$('#now-seek').value=progress;}
     $('.bottom-dock').hidden=state.selected.size===0&&!state.current;
   }
-  function failPlayback(message) {state.status='error';state.error=message;updatePlayback();}
+  function failPlayback(message) {state.status='error';state.error=message;updatePlayback();planPreload();}
   async function playVoice(v, retry=false) {
     if(!v?.audioURL){notify('這個聲音的路徑無效，請選擇其他聲音。');return;}
     if(state.current?.id===v.id && state.status==='playing' && !retry){audio.pause();return;}
-    if(state.current?.id!==v.id || retry || state.status==='error'){
-      audio.pause();state.current=v;state.status='loading';state.error='';audio.src=v.audioURL;audio.volume=state.volume;audio.load();
-    } else if(audio.ended){audio.currentTime=0;}
-    state.status='loading';updatePlayback();
-    try {await audio.play();}
-    catch(error){if(state.current?.id!==v.id||error.name==='AbortError')return;failPlayback(error.name==='NotAllowedError'?'瀏覽器尚未允許播放。請再次按播放按鈕。':'無法載入或播放這個 WAV。請確認網路後重新嘗試。');}
+    const version = ++playVersion;
+    const changeSource = state.current?.id!==v.id || retry || state.status==='error' || !audio.getAttribute('src');
+    if (changeSource) { audio.pause(); audio.removeAttribute('src'); audio.load(); state.current=v; state.error=''; }
+    state.status='loading'; updatePlayback();
+    try {
+      if (changeSource) {
+        const source = await loader.acquire(v.audioURL,retry);
+        if (version !== playVersion) return;
+        audio.src=source; audio.volume=state.volume; audio.load();
+      } else if(audio.ended) audio.currentTime=0;
+      planPreload(); await audio.play();
+    } catch(error) {
+      if(version!==playVersion||error.name==='AbortError')return;
+      failPlayback(error.name==='NotAllowedError'?'聲音已準備好，請再按一次播放。':`無法載入或播放這個 WAV（${error.message}）。請確認網路後重新嘗試。`);
+    }
   }
-  function stopPlayback() {audio.pause();audio.removeAttribute('src');audio.load();state.current=null;state.status='idle';updatePlayback();updateSelection();}
+  function stopPlayback() {++playVersion;audio.pause();audio.removeAttribute('src');audio.load();state.current=null;state.status='idle';loader.release();updatePlayback();updateSelection();planPreload();}
   function resetFilters() {$('#search').value='';['gender','pitch','humanity'].forEach(id=>$('#'+id).value='');$('#sort').value='id';clearTimeout(searchTimer);filterVoices();}
   async function loadIndex() {
     const version=++loadVersion;
@@ -134,6 +160,7 @@
       try{const saved=JSON.parse(localStorage.getItem('breeze-compare-v1')||'[]');if(Array.isArray(saved))state.selected=new Set(saved.filter(id=>state.byId.has(id)).slice(0,MAX_COMPARE));}catch{state.selected=new Set();}
       $('#total-count').textContent=number(state.voices.length);$('#available-count').textContent=number(state.voices.filter(v=>v.audioURL&&v.available!==false).length);
       $('#random-play').disabled=false;filterVoices();renderComparison();
+      loader.setLibrary(state.voices).catch(error=>{ $('#cache-warning').hidden=false; $('#cache-warning').textContent=`快取初始化失敗，仍可手動播放：${error.message}`; });
     }catch(error){if(version!==loadVersion)return;$('#voice-grid').innerHTML='';$('#voice-grid').setAttribute('aria-busy','false');$('#load-error').hidden=false;$('#load-error-text').textContent=`${error.message}。請確認網路連線，再按重新載入。`;$('#results-count').textContent='聲音索引載入失敗';}
   }
   document.addEventListener('click',event=>{
@@ -145,8 +172,8 @@
       else if(state.selected.size>=MAX_COMPARE){notify('比較清單最多放 4 個聲音，先移除一個再加入。');return;}
       else state.selected.add(v.id);
       saveSelection();updateSelection();if($('#compare-dialog').open)renderComparison();
-    }else if(target.matches('.compare-open')){renderComparison();$('#compare-dialog').showModal();}
-    else if(target.matches('.close-dialog'))$('#compare-dialog').close();
+    }else if(target.matches('.compare-open')){$('#compare-dialog').showModal();renderComparison();}
+    else if(target.matches('.close-dialog')){$('#compare-dialog').close();planPreload();}
     else if(target.matches('.clear-compare')){state.selected.clear();saveSelection();updateSelection();if($('#compare-dialog').open)renderComparison();}
     else if(target.matches('.details-toggle')&&article){const expanded=target.getAttribute('aria-expanded')!=='true';target.setAttribute('aria-expanded',expanded);target.textContent=expanded?'收起筆記 −':'完整筆記 ＋';$('.details-body',article).hidden=!expanded;$('.card-description',article).classList.toggle('expanded',expanded||article.closest('#compare-grid'));}
     else if(target.matches('.page-button')){state.page=Number(target.dataset.page);renderList();$('#library').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});$('#library-title').setAttribute('tabindex','-1');$('#library-title').focus({preventScroll:true});}
@@ -165,11 +192,29 @@
   ['gender','pitch','humanity','sort'].forEach(id=>$('#'+id).addEventListener('change',filterVoices));
   $('#random-play').addEventListener('click',()=>{if(!state.filtered.length){notify('先清除篩選，就能隨機試聽。');return;}const i=Math.floor(Math.random()*state.filtered.length);state.page=Math.floor(i/PAGE_SIZE)+1;renderList();playVoice(state.filtered[i]);});
   document.addEventListener('keydown',event=>{if(event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!$('#compare-dialog').open&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){event.preventDefault();$('#search').focus();}});
-  audio.addEventListener('playing',()=>{if(!state.current)return;state.status='playing';updatePlayback();});
-  audio.addEventListener('pause',()=>{if(!state.current||state.status==='error'||audio.ended)return;state.status='paused';updatePlayback();});
+  audio.addEventListener('playing',()=>{if(!state.current)return;state.status='playing';updatePlayback();planPreload();});
+  audio.addEventListener('pause',()=>{if(!state.current||state.status==='error'||audio.ended)return;state.status='paused';updatePlayback();planPreload();});
   audio.addEventListener('waiting',()=>{if(state.current){state.status='loading';updatePlayback();}});
-  audio.addEventListener('ended',()=>{if(state.current){state.status='ended';updatePlayback();}});
+  audio.addEventListener('ended',()=>{if(state.current){state.status='ended';updatePlayback();planPreload();}});
   ['timeupdate','durationchange','loadedmetadata','seeked'].forEach(name=>audio.addEventListener(name,updatePlayback));
   audio.addEventListener('error',()=>{if(state.current&&audio.getAttribute('src'))failPlayback('找不到音檔、網路中斷，或瀏覽器無法解碼這個 WAV。請重新嘗試或下載檔案。');});
+  $('#preload-enabled').addEventListener('change',event=>{
+    loader.setEnabled(event.target.checked);
+    try { localStorage.setItem('breeze-library-v2',event.target.checked?'on':'off'); } catch { /* Optional preference storage. */ }
+    planPreload();
+  });
+  ['online','offline'].forEach(name=>window.addEventListener(name,()=>loader.reconcile(name==='online')));
+  document.addEventListener('visibilitychange',()=>loader.reconcile());
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  connection?.addEventListener?.('change',()=>loader.reconcile());
+  $('#compare-dialog').addEventListener('close',planPreload);
+  window.addEventListener('pagehide',()=>{++playVersion;audio.pause();audio.removeAttribute('src');audio.load();loader.dispose();});
+  window.addEventListener('pageshow',event=>{if(event.persisted){state.current=null;state.status='idle';loader.resume();loader.setEnabled($('#preload-enabled').checked);planPreload();updatePlayback();}});
+  $('#retry-cache').addEventListener('click',()=>loader.retryFailed());
+  $('#clear-audio-cache').addEventListener('click',async event=>{
+    event.target.disabled=true;stopPlayback();$('#preload-enabled').checked=false;
+    try { localStorage.setItem('breeze-library-v2','off'); } catch { /* Optional preference storage. */ }
+    try { await loader.clearCache(); } finally { event.target.disabled=false; }
+  });
   loadIndex();
 })();
