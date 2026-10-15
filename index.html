@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fdfbf7">
+  <meta name="description" content="翻開 Breeze TTS 的聲音筆記本。搜尋、比較與試聽 1,000 種聲線，尋找有個性的聲音。">
+  <title>Breeze TTS Voice Library — 聲音筆記本</title>
+  <link rel="icon" href="./assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/css/style.css">
+  <script src="./assets/js/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#library">跳至聲音列表</a>
+  <header class="site-header wrap">
+    <a class="brand" href="./" aria-label="Breeze TTS Voice Library 首頁">
+      <svg class="brand-icon" viewBox="0 0 42 42" aria-hidden="true"><path d="M6 15v13m8-20v28m8-32v34m8-25v18m7-14v10"/></svg>
+      <span>Breeze TTS<small>VOICE LIBRARY</small></span>
+    </a>
+    <nav aria-label="主要導覽"><a class="nav-link" href="#library">翻翻聲音庫</a><button class="button small compare-open" type="button">比較聲音 <span class="compare-count">0</span></button></nav>
+  </header>
+  <main>
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="red-dot"></span> 聲音實驗筆記 / VOL. 01</span>
+        <h1 id="hero-title">每個聲音，<br>都有自己的<span class="underlined">個性。</span></h1>
+        <p class="intro">1,000 種聲線，同一句問候。<br>戴上耳機，找到讓你停下來聽的那一個。</p>
+        <div class="hero-actions"><a class="button primary" href="#library">開始找聲音 <span aria-hidden="true">↘</span></a><button class="text-button" id="random-play" type="button" disabled>隨機聽一個 <span aria-hidden="true">↗</span></button></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <span class="tape"></span>
+        <span class="art-note">給耳朵的一份小禮物</span>
+        <svg class="cassette" viewBox="0 0 440 270" fill="none">
+          <path d="M30 39Q220 26 406 43L410 237Q220 249 24 232Z" fill="#fff9c4" stroke="#2d2d2d" stroke-width="3.5"/>
+          <path d="M51 62Q218 54 382 65L381 175Q220 181 51 174Z" fill="#fdfbf7" stroke="#2d2d2d" stroke-width="2.5"/>
+          <path d="M55 98Q211 93 378 100M59 88L96 87" stroke="#ff4d4d" stroke-width="3"/>
+          <text x="110" y="86" fill="#2d2d2d" class="cassette-title">BREEZE / VOICE NOTES</text>
+          <path d="M119 118L315 119Q339 147 315 161L120 159Q95 140 119 118Z" fill="#e5e0d8" stroke="#2d2d2d" stroke-width="2.5"/>
+          <g class="reel"><circle cx="135" cy="139" r="28" fill="#fdfbf7" stroke="#2d2d2d" stroke-width="3"/><path d="M135 120v10m0 18v10m-19-19h10m18 0h10m-32-13 8 7m11 12 7 7m-26 0 8-7m11-12 7-7" stroke="#2d2d2d" stroke-width="3"/></g>
+          <g class="reel"><circle cx="299" cy="139" r="28" fill="#fdfbf7" stroke="#2d2d2d" stroke-width="3"/><path d="M299 120v10m0 18v10m-19-19h10m18 0h10m-32-13 8 7m11 12 7 7m-26 0 8-7m11-12 7-7" stroke="#2d2d2d" stroke-width="3"/></g>
+          <path d="M179 124L255 125 254 151 178 150Z" fill="#2d2d2d"/><path d="M185 137L248 138" stroke="#fdfbf7" stroke-width="1.5"/>
+          <path d="M123 235L140 194 300 196 318 239" fill="#e5e0d8" stroke="#2d2d2d" stroke-width="2.5"/>
+          <circle cx="163" cy="219" r="7" fill="#fdfbf7" stroke="#2d2d2d" stroke-width="2"/><circle cx="279" cy="220" r="7" fill="#fdfbf7" stroke="#2d2d2d" stroke-width="2"/>
+          <path d="M46 47l5 5m-5 0 5-5m331 1 5 5m-5 0 5-5M42 214l5 5m-5 0 5-5m341 0 5 5m-5 0 5-5" stroke="#2d2d2d" stroke-width="2"/>
+          <text x="55" y="205" fill="#2d5da1" class="cassette-number">A</text><text x="328" y="207" fill="#2d5da1" class="cassette-number">24k</text>
+        </svg>
+        <span class="art-caption">1,000 voices. one little hello.</span>
+        <svg class="scribble-arrow" viewBox="0 0 110 65"><path d="M5 5Q80 0 91 47M72 35L92 51 103 30" stroke="#2d5da1" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+    </section>
+    <div class="stats wrap" aria-label="聲音庫統計">
+      <div><strong id="total-count">—</strong><span>種聲線，等你探索</span></div>
+      <div><strong id="available-count">—</strong><span>個音檔可供試聽</span></div>
+      <div><strong>WAV <small>/ 24 kHz</small></strong><span>保留原始生成音質</span></div>
+      <p class="stat-note">同一句台詞，<br>聽見不同的想像。<span aria-hidden="true">✳</span></p>
+    </div>
+    <section class="library wrap" id="library" aria-labelledby="library-title">
+      <div class="section-heading"><div><span class="eyebrow ink-blue">THE COLLECTION</span><h2 id="library-title">翻翻聲音筆記</h2></div><p>先試聽，再把喜歡的加入比較。<br><span>一次專心聽一個聲音。</span></p></div>
+      <form id="search-form" class="search-form" role="search">
+        <label class="search-box" for="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg><input id="search" type="search" placeholder="試試「溫暖」、「沙啞」或聲音編號…" autocomplete="off" aria-label="搜尋編號、檔名或聲音描述"><kbd aria-hidden="true">/</kbd></label>
+        <div class="filters">
+          <label>聲音性別<select id="gender"><option value="">所有性別</option><option value="masculine">男性聲線</option><option value="feminine">女性聲線</option><option value="neutral">中性聲線</option><option value="not_applicable">不適用</option><option value="unspecified">未指定</option></select></label>
+          <label>音高<select id="pitch"><option value="">所有音高</option><option value="low">低音</option><option value="mid">中音</option><option value="high">高音</option><option value="dynamic">多變音高</option></select></label>
+          <label>聲音類型<select id="humanity"><option value="">所有類型</option><option value="human">人類聲線</option><option value="nonhuman">非人類聲線</option><option value="synthetic">合成聲線</option><option value="ambiguous">難以歸類</option></select></label>
+          <label class="sort-label">排列方式<select id="sort"><option value="id">編號：由小到大</option><option value="id-desc">編號：由大到小</option><option value="short">長度：短至長</option><option value="long">長度：長至短</option></select></label>
+          <button class="text-button reset-filters" type="button">重設</button>
+        </div>
+      </form>
+      <div class="results-heading"><p id="results-count" role="status">正在翻開聲音筆記…</p><span class="page-note" id="page-note"></span></div>
+      <div id="load-error" class="empty-state" hidden><h3>聲音索引暫時打不開</h3><p id="load-error-text"></p><button class="button retry-index" type="button">重新載入</button></div>
+      <div id="voice-grid" class="voice-grid" aria-busy="true"></div>
+      <div id="no-results" class="empty-state" hidden><span aria-hidden="true">∅</span><h3>這一頁還沒有這樣的聲音</h3><p>換個關鍵字，或清除篩選再找找看。</p><button class="button reset-filters" type="button">清除搜尋與篩選</button></div>
+      <nav id="pagination" class="pagination" aria-label="聲音列表分頁"></nav>
+    </section>
+    <aside class="listening-note wrap"><span class="note-pin" aria-hidden="true"></span><div><span class="eyebrow ink-blue">ONE SENTENCE, MANY PERSONALITIES</span><h2>「你好，我是你的專屬虛擬角色，<br>很高興認識你！」</h2><p>每個音檔都使用這句原始測試台詞。描述取自官方聲線設計資料集的繁中翻譯，實際聲音以試聽為準。</p></div><span class="note-doodle" aria-hidden="true">hello!</span></aside>
+  </main>
+  <footer class="footer wrap"><span>Breeze TTS Voice Library</span><p>做一點聲音的白日夢。<a href="https://huggingface.co/datasets/BreezeBlue/TTS-Voice-Design-Benchmark" target="_blank" rel="noopener noreferrer">資料來源 ↗</a></p></footer>
+  <div class="bottom-dock" hidden>
+    <div id="now-playing" class="now-playing" hidden><button class="play-button now-toggle" type="button" aria-label="播放目前聲音">▶</button><div class="now-info"><strong id="now-id"></strong><span id="now-status"></span></div><input id="now-seek" type="range" min="0" max="1000" value="0" aria-label="目前聲音播放進度"><span id="now-time">0:00 / 0:00</span><button class="text-button now-stop" type="button" aria-label="關閉目前播放器">✕</button></div>
+    <div id="compare-tray" class="compare-tray" hidden><span><strong class="compare-count">0</strong> 個聲音，放在一起聽。</span><div><button class="text-button clear-compare" type="button">清空</button><button class="button primary small compare-open" type="button">打開比較清單 ↗</button></div></div>
+  </div>
+  <dialog id="compare-dialog" aria-labelledby="compare-title"><div class="dialog-heading"><div><span class="eyebrow ink-blue">SIDE BY SIDE</span><h2 id="compare-title">聽聽，有什麼不一樣？</h2></div><button class="button small close-dialog" type="button" aria-label="關閉比較清單">✕</button></div><p class="dialog-intro">最多 4 個聲音，逐一試聽。播放另一個聲音時會自動暫停前一個。</p><div id="compare-grid" class="voice-grid"></div><p id="compare-empty">還沒有加入聲音。回到列表，點選「加入比較」。</p></dialog>
+  <audio id="audio-player" preload="none"></audio>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <noscript><p class="empty-state">請啟用 JavaScript，以瀏覽、搜尋和試聽聲音。</p></noscript>
+</body>
+</html>

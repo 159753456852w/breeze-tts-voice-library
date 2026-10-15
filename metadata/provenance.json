@@ -1,0 +1,13 @@
+{
+  "dataset": "BreezeBlue/TTS-Voice-Design-Benchmark",
+  "revision": "a1c8cf3487620b2f71d6d8db3e584639e2fc3680",
+  "dataset_url": "https://huggingface.co/datasets/BreezeBlue/TTS-Voice-Design-Benchmark",
+  "test_text": "你好，我是你的專屬虛擬角色，很高興認識你！",
+  "seed": 42,
+  "sample_rate": 24000,
+  "translation_models": {
+    "Qwen/Qwen3-14B-GGUF": 979,
+    "Qwen/Qwen3-8B-GGUF": 21
+  },
+  "audio_copied_without_modification": true
+}

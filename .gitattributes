@@ -1,0 +1,4 @@
+* text=auto
+*.wav binary -filter
+*.ttf binary
+*.woff2 binary
